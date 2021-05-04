@@ -32,7 +32,7 @@ class SpringF32
     AddSpeed( fAdd, min, max )
     {
         this.mfSpeed += fAdd ;
-        this.mfSpeed = constrain( this.mfSpeed, min, max ) ;
+        this.mfSpeed = sys.constrain( this.mfSpeed, min, max ) ;
     }
 
     UpdateToTarget( target, k, dump )
