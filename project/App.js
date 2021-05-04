@@ -8,7 +8,7 @@ class App
 
         this.mBackground = sys.color( 128, 128, 128 , 255 ) ;
         this.InputMgr = new InputMgr() ;
-        this.CurrentScene = new TestScene() ;
+        this.CurrentScene = new SceneParticle() ;
         this.ObjMgr = new ObjMgr() ;
         
 
