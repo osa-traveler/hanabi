@@ -120,6 +120,74 @@ class ObjEmitter extends ObjBase
 
 }
 
+///////////////////////////////////
+///
+//////////////////////////////////
+
+
+class ObjGravityGenerator extends ObjBase  
+{
+    constructor( pos ) 
+    {
+        super() ;
+
+        this.mPos = pos ;
+        this.mnCounter = 0 ;
+        this.mnPower = 40.0 ;
+        this.mScale = new SpringF32( 1.0 ) ;
+        
+    }
+
+    Init()
+    {
+        sys.print( "[ObjGravityGenerator::Init]" );
+        super.Init() ;
+    }
+   
+    Reset()
+    {
+        sys.print( "[ObjGravityGenerator::Reset]" );
+        super.Reset() ;
+
+        this.mnCounter = 0 ;
+        this.mnPower = 40.0 ;
+        this.mScale.Set( 1.0 ) ; 
+
+    }
+
+    Calc() 
+    {
+      super.Calc() ;
+      
+      ++this.mnCounter ;
+      
+      if( 6000000 == this.mnCounter || this.mbShouldRemove )
+      {
+          //mbShouldRemove = true ;
+        
+          //SceneParticle sp = (SceneParticle)app.mCurrentScene ;
+         //sp.removeGravityGenerator( this ) ;
+      }
+      
+      this.mScale.UpdateToTarget( 1.0, 0.2, 0.8 ) ;
+      
+    }
+    
+    Draw()
+    {
+      //float fScale =  mScale.get() ;
+      //if( fScale < 0.1f ){ fScale = 0.1f ; }
+      //strokeWeight( 20 * fScale );
+      //stroke( color( 255, 255, 255, 255 ) ) ;
+      //point( mPos.x, mPos.y ) ;
+      //strokeWeight( 3 );
+      //stroke( color( 64, 64, 255, 255 ) ) ;
+      //line( mPos.x -4*fScale , mPos.y, mPos.x +4*fScale, mPos.y ) ;
+  
+    }
+
+}
+
 
 ///////////////////////////////////
 ///
@@ -156,24 +224,24 @@ class ObjParticle extends ObjBase
     Calc()
     {
         // scene
-        //SceneParticle sp = (SceneParticle)app.mCurrentScene ;
+        var sp = app.CurrentScene ;
       
-        // grav
+        // grav 
         this.mOldSpeed.set( this.mSpeed ) ;
         if( -1 == this.mnFadeCounter )
         {
-            //mSpeed.add( sp.calcGravity( mPos ) ) ;    
+            this.mSpeed.add( sp.calcGravity( this.mPos ) ) ;    
         }
     
         this.mPos.x += this.mSpeed.x ;
         this.mPos.y += this.mSpeed.y ;
     
-        if( 600 == this.mnCounter /*|| ( this.mnCounter == 15 && sp.mGGList.size()==0 ) */)
+        if( 600 == this.mnCounter || ( this.mnCounter == 15 && sp.mGGList.length==0 ) )
         {
             this.mnFadeCounter = 60 ;    
         }
     
-        if( this.mnCounter == 60 /*&& sp.mGGList.size()==0 */)
+        if( this.mnCounter == 60 && sp.mGGList.length==0 )
         {
             this.mnFadeCounter = 60 ;
         }
@@ -200,10 +268,10 @@ class ObjParticle extends ObjBase
             this.mColor = sys.color( sys.red( this.mColor), sys.green( this.mColor), sys.blue( this.mColor), alpha ) ;//( this.mColor & 0x00ffffff ) | ( alpha << 24 ) ;
         }
 
-        //if( sp.checkCollision( this ) )
-        //{
-        //    this.mbShouldRemove = true ;
-        //}
+        if( sp.checkCollision( this ) )
+        {
+            this.mbShouldRemove = true ;
+        }
 
         ++this.mnCounter  ;
     
@@ -246,6 +314,9 @@ class SceneParticle extends SceneBase
     {
         super() ;
 
+        this.mGGList = {} ;
+        this.mnGGNum = 0 ;
+
 
     }
   
@@ -256,15 +327,22 @@ class SceneParticle extends SceneBase
         app.mBackground = sys.color(0,0,0,255) ;
         
 
-
+        // エミッタ
         this.emitter = new ObjEmitter( sys.createVector( 200, 200 ) ) ;
         app.ObjMgr.RequestAdd( this.emitter ) ;
+
+        // 重力
+        this.gravity = new ObjGravityGenerator( sys.createVector( 400, 300 ) ) ;
+        app.ObjMgr.RequestAdd( this.gravity ) ;
+        this.addGravityGenerator(this.gravity) ;
     }
     
     Reset()
     {
         sys.print( "[TestScene::Reset]" );
 
+        //this.mGGList = {} ;
+        //this.mnGGNum = 0 ;
     }
     
     Calc()
@@ -286,6 +364,70 @@ class SceneParticle extends SceneBase
     {
 
     }
+
+    addGravityGenerator( gg )
+    {
+        this.mGGList[this.mnGGNum] = gg ;
+        ++this.mnGGNum ;
+
+        console.log(this.mGGList); 
+    }
+    removeGravityGenerator( gg )
+    {
+        for( var obj in this.mGGList )
+        {
+            if( this.mGGList[ obj ] == gg )
+            {
+                delete this.mGGList[ obj ] ;
+            }
+        }
+
+    }
+
+    calcGravity( pos )
+    {
+        var result = sys.createVector( 0,0 ) ;
+        
+        //console.log(this.mGGList);
+
+        for( var obj in this.mGGList )
+        {
+            
+            var gg = this.mGGList[ obj ] ;
+            var tmp = gg.mPos.copy() ;
+            var dist = p5.Vector.dist( tmp, pos ) ;
+            if( dist < 20 ) { dist = 20 ; }
+  
+            tmp.sub( pos ) ;
+            tmp.normalize();
+            tmp.setMag( gg.mnPower / sys.sqrt( dist * dist ) ) ;
+
+            result.add( tmp ) ;
+        }
+ 
+        return result ;
+
+    }
+
+    checkCollision( op )
+    {
+        for( var obj in this.mGGList )
+        {
+            
+            var gg = this.mGGList[ obj ] ;
+
+            var dist = p5.Vector.dist( gg.mPos, op.mPos ) ;
+            if( dist < 20 && ( sys.abs( op.mSpeed.mag()) < 20.0 ) )
+            {
+                gg.mScale.AddSpeed( 0.1 ) ;
+                return true ;
+            }
+        }
+      
+        return false ;
+      
+    }
+
 
 }
 
